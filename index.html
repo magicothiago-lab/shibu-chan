@@ -108,48 +108,28 @@ const REAL_WORDS = [
 REAL_WORDS[14] = { jp: "いい", furigana: "いい", romaji: "ii", meaning: "bom", ex: "天気がいいです。", exFuri: "てんきがいいです。", exTr: "O tempo está bom." };
 
 /* ------------------------------------------------------------------ */
-/*  GERADOR DE MOCK — para as palavras/módulos restantes              */
+/*  DATASET REAL — palavras restantes, ordenadas por frequência.       */
+/*  Carregado de words.json (gerado a partir de JMdict + corpus        */
+/*  Tatoeba; significados em PT e exemplos reais com furigana).        */
 /* ------------------------------------------------------------------ */
-const KANJI_POOL = "日月火水木金土山川田中文字学校時間先生学生会社仕事電話手紙花鳥空雲雨雪風海道車駅店町村市県国語数科目体心音色光力声".split("");
-const KANA_POOL = "あいうえおかきくけこさしすせそたちつてとなにぬねのはひふへほまみむめもやゆよらりるれろ".split("");
-const MEANINGS = ["coisa","lugar","trabalho","palavra","som","cor","força","corpo","coração","caminho","loja","cidade","país","língua","número","matéria","carta","flor","pássaro","céu","nuvem","chuva","neve","vento","mar","carro","estação","montanha","rio","campo"];
-
-function pick(arr, seed) { return arr[seed % arr.length]; }
-
-function generateWord(globalIndex) {
-    const k1 = pick(KANJI_POOL, globalIndex * 7 + 3);
-    const k2 = pick(KANJI_POOL, globalIndex * 13 + 5);
-    const jp = (globalIndex % 3 === 0) ? k1 : k1 + k2;
-    const furigana = pick(KANA_POOL, globalIndex * 3) + pick(KANA_POOL, globalIndex * 5 + 1) + (jp.length > 1 ? pick(KANA_POOL, globalIndex * 11) : "");
-    const meaning = pick(MEANINGS, globalIndex) + (globalIndex % 4 === 0 ? "" : " (" + (globalIndex + 1) + ")");
-    return {
-        jp,
-        furigana,
-        romaji: furigana,
-        meaning,
-        ex: jp + "を使います。",
-        exFuri: furigana + "をつかいます。",
-        exTr: "Eu uso \"" + meaning + "\".",
-        mock: true,
-    };
-}
+let DATASET = [];   // preenchido pelo fetch("words.json") no App
 
 const TOTAL_MODULES = 15;
 const LESSONS_PER_MODULE = 10;
 const WORDS_PER_LESSON = 20;
 
-// Retorna as 20 palavras de uma aula específica (módulo 0-index, aula 0-index)
+// Retorna as 20 palavras de uma aula. Aula global 0 = REAL_WORDS (curada à mão);
+// as demais vêm do DATASET (por frequência). Aula global 1 -> DATASET[0..20], etc.
 function getLessonWords(moduleIdx, lessonIdx) {
-    if (moduleIdx === 0 && lessonIdx === 0) return REAL_WORDS;
-    const start = (moduleIdx * LESSONS_PER_MODULE + lessonIdx) * WORDS_PER_LESSON;
-    return Array.from({ length: WORDS_PER_LESSON }, (_, i) => generateWord(start + i));
+    const globalLesson = moduleIdx * LESSONS_PER_MODULE + lessonIdx;
+    if (globalLesson === 0) return REAL_WORDS;
+    const start = (globalLesson - 1) * WORDS_PER_LESSON;
+    return DATASET.slice(start, start + WORDS_PER_LESSON);
 }
 
-const MODULE_THEMES = [
-    "Fundamentos","Vida Diária","Comida e Bebida","Pessoas e Família","Casa e Cidade",
-    "Trabalho e Escola","Tempo e Clima","Verbos Essenciais","Adjetivos","Viagem e Transporte",
-    "Corpo e Saúde","Natureza","Sentimentos","Tecnologia","Avançado",
-];
+// O conteúdo é ordenado por frequência (não por tema): rótulo = faixa de frequência.
+const MODULE_THEMES = Array.from({ length: TOTAL_MODULES }, (_, m) =>
+    `${m * WORDS_PER_LESSON * LESSONS_PER_MODULE + 1}–${(m + 1) * WORDS_PER_LESSON * LESSONS_PER_MODULE} mais frequentes`);
 
 /* ------------------------------------------------------------------ */
 /*  PERSISTÊNCIA (localStorage)                                        */
@@ -271,7 +251,9 @@ function buildSessionCards(mode, moduleIdx, lessonIdx, progress, today) {
             const parts = key.split("-").map(Number);
             const [m, l, i] = parts;
             if (parts.length !== 3 || parts.some(n => !Number.isInteger(n))) continue;
-            due.push({ m, l, i, key, word: getLessonWords(m, l)[i] });
+            const word = getLessonWords(m, l)[i];
+            if (!word) continue;   // dataset ainda não carregado / índice fora do alcance
+            due.push({ m, l, i, key, word });
         }
         for (let k = due.length - 1; k > 0; k--) {   // embaralha (Fisher–Yates)
             const j = Math.floor(Math.random() * (k + 1));
@@ -279,9 +261,9 @@ function buildSessionCards(mode, moduleIdx, lessonIdx, progress, today) {
         }
         return due;
     }
-    return getLessonWords(moduleIdx, lessonIdx).map((word, i) => ({
-        m: moduleIdx, l: lessonIdx, i, key: moduleIdx + "-" + lessonIdx + "-" + i, word,
-    }));
+    return getLessonWords(moduleIdx, lessonIdx)
+        .map((word, i) => ({ m: moduleIdx, l: lessonIdx, i, key: moduleIdx + "-" + lessonIdx + "-" + i, word }))
+        .filter(c => c.word);
 }
 
 /* ------------------------------------------------------------------ */
@@ -316,12 +298,35 @@ function Ruby({ jp, furigana, show, size = "text-7xl sm:text-8xl" }) {
     );
 }
 
+// Renderiza a frase-exemplo. Com furigana: usa exParts (ruby por segmento, dataset)
+// ou exFuri (ruby única, palavras curadas da Aula 1). Sem furigana: texto puro.
+function ExampleJP({ word, showFuri }) {
+    if (!showFuri) return <>{word.ex}</>;
+    if (word.exParts) {
+        return <>{word.exParts.map((p, i) => p[1]
+            ? <ruby key={i}>{p[0]}<rt>{p[1]}</rt></ruby>
+            : <span key={i}>{p[0]}</span>)}</>;
+    }
+    if (word.exFuri) return <ruby>{word.ex}<rt>{word.exFuri}</rt></ruby>;
+    return <>{word.ex}</>;
+}
+
+function LoadingVocab() {
+    return (
+        <div className="animate-slideup max-w-md mx-auto text-center pt-16">
+            <div className="w-12 h-12 mx-auto rounded-full border-4 border-slate-200 dark:border-slate-700 border-t-red-500 animate-spin" />
+            <p className="text-slate-500 dark:text-slate-400 mt-4 font-semibold">Carregando vocabulário…</p>
+        </div>
+    );
+}
+
 /* ================================================================== */
 /*  APP                                                                */
 /* ================================================================== */
 function App() {
     const [progress, setProgress] = useState(loadProgress);
     const [view, setView] = useState({ screen: "dashboard" }); // dashboard | modules | lessons | flashcards
+    const [dataReady, setDataReady] = useState(() => DATASET.length > 0);
 
     // aplica tema
     useEffect(() => {
@@ -336,6 +341,15 @@ function App() {
     // pré-carrega vozes de TTS
     useEffect(() => {
         if ("speechSynthesis" in window) window.speechSynthesis.getVoices();
+    }, []);
+
+    // carrega o vocabulário real (palavras 21–3000) de words.json (uma vez)
+    useEffect(() => {
+        if (DATASET.length > 0) { setDataReady(true); return; }
+        fetch("words.json")
+            .then(r => r.json())
+            .then(d => { DATASET = Array.isArray(d) ? d : []; setDataReady(true); })
+            .catch(() => setDataReady(true)); // se falhar, a Aula 1 (curada) ainda funciona
     }, []);
 
     const update = useCallback((patch) => {
@@ -398,8 +412,9 @@ function App() {
                 {view.screen === "lessons" && (
                     <LessonsList moduleIdx={view.moduleIdx} progress={progress} setView={setView} />
                 )}
-                {view.screen === "flashcards" && (
+                {view.screen === "flashcards" && (dataReady ? (
                     <Flashcards
+                        key={view.mode === "review" ? "review" : view.moduleIdx + "-" + view.lessonIdx}
                         mode={view.mode === "review" ? "review" : "lesson"}
                         moduleIdx={view.moduleIdx}
                         lessonIdx={view.lessonIdx}
@@ -408,7 +423,7 @@ function App() {
                         registerStudy={registerStudy}
                         setView={setView}
                     />
-                )}
+                ) : <LoadingVocab />)}
             </main>
             <BottomNav view={view} setView={setView} dueCount={dueCount} />
         </div>
@@ -802,18 +817,20 @@ function Flashcards({ mode, moduleIdx, lessonIdx, progress, update, registerStud
                             <div className="text-xs uppercase tracking-widest text-slate-400">Significado</div>
                             <div className="text-2xl font-extrabold mt-1">{word.meaning}</div>
                         </div>
-                        <div className="bg-slate-50 dark:bg-slate-800/60 rounded-2xl p-4">
-                            <div className="flex items-center justify-between mb-2">
-                                <span className="text-xs uppercase tracking-widest text-slate-400">Exemplo</span>
-                                <button onClick={() => speak(word.ex)} className="text-red-500 inline-flex items-center gap-1 text-xs font-semibold active:scale-90 transition">
-                                    <Icon name="Volume2" className="w-4 h-4" /> Ouvir frase
-                                </button>
+                        {word.ex && (
+                            <div className="bg-slate-50 dark:bg-slate-800/60 rounded-2xl p-4">
+                                <div className="flex items-center justify-between mb-2">
+                                    <span className="text-xs uppercase tracking-widest text-slate-400">Exemplo</span>
+                                    <button onClick={() => speak(word.ex)} className="text-red-500 inline-flex items-center gap-1 text-xs font-semibold active:scale-90 transition">
+                                        <Icon name="Volume2" className="w-4 h-4" /> Ouvir frase
+                                    </button>
+                                </div>
+                                <p className="font-jp text-lg text-slate-900 dark:text-white leading-loose">
+                                    <ExampleJP word={word} showFuri={showFuri} />
+                                </p>
+                                {word.exTr && <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">{word.exTr}</p>}
                             </div>
-                            <p className="font-jp text-lg text-slate-900 dark:text-white">
-                                {showFuri ? <ruby>{word.ex}<rt>{word.exFuri}</rt></ruby> : word.ex}
-                            </p>
-                            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">{word.exTr}</p>
-                        </div>
+                        )}
                     </div>
                 )}
             </div>
