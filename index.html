@@ -1,0 +1,693 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="theme-color" content="#ef4444" />
+    <title>Okane 日本語 — Aprenda as 3000 palavras mais frequentes do japonês</title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- React + ReactDOM + Babel -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        jp: ['"Hiragino Kaku Gothic ProN"', '"Yu Gothic"', 'Meiryo', 'sans-serif'],
+                    },
+                    keyframes: {
+                        flip: { '0%': { transform: 'rotateY(90deg)', opacity: '0' }, '100%': { transform: 'rotateY(0)', opacity: '1' } },
+                        pop: { '0%': { transform: 'scale(0.95)', opacity: '0' }, '100%': { transform: 'scale(1)', opacity: '1' } },
+                        slideup: { '0%': { transform: 'translateY(12px)', opacity: '0' }, '100%': { transform: 'translateY(0)', opacity: '1' } },
+                    },
+                    animation: {
+                        flip: 'flip 0.35s ease-out',
+                        pop: 'pop 0.25s ease-out',
+                        slideup: 'slideup 0.3s ease-out',
+                    },
+                },
+            },
+        };
+    </script>
+    <style>
+        html { -webkit-tap-highlight-color: transparent; }
+        body { overscroll-behavior-y: none; }
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-thumb { background: rgba(120,120,120,.35); border-radius: 99px; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        rt { font-size: .55em; font-weight: 500; color: #ef4444; }
+        .dark rt { color: #fca5a5; }
+    </style>
+</head>
+<body class="bg-slate-50 dark:bg-slate-950 transition-colors">
+    <div id="root"></div>
+
+    <script type="text/babel" data-presets="react">
+const { useState, useEffect, useRef, useMemo, useCallback } = React;
+
+/* ------------------------------------------------------------------ */
+/*  Ícones (Lucide via wrapper React)                                  */
+/* ------------------------------------------------------------------ */
+function Icon({ name, className = "w-5 h-5", strokeWidth = 2 }) {
+    const ref = useRef(null);
+    useEffect(() => {
+        if (ref.current && window.lucide) {
+            ref.current.innerHTML = "";
+            const svg = window.lucide.createElement(window.lucide.icons[name] || window.lucide.icons.Circle);
+            svg.setAttribute("stroke-width", strokeWidth);
+            svg.classList.add(...className.split(" ").filter(Boolean));
+            ref.current.appendChild(svg);
+        }
+    }, [name, className, strokeWidth]);
+    return <span ref={ref} className="inline-flex items-center justify-center" />;
+}
+
+/* ------------------------------------------------------------------ */
+/*  DADOS REAIS — Módulo 1, Aula 1 (20 palavras frequentes)           */
+/* ------------------------------------------------------------------ */
+const REAL_WORDS = [
+    { jp: "私", furigana: "わたし", romaji: "watashi", meaning: "eu", ex: "私は学生です。", exFuri: "わたしはがくせいです。", exTr: "Eu sou estudante." },
+    { jp: "人", furigana: "ひと", romaji: "hito", meaning: "pessoa", ex: "あの人は親切です。", exFuri: "あのひとはしんせつです。", exTr: "Aquela pessoa é gentil." },
+    { jp: "日", furigana: "ひ", romaji: "hi", meaning: "dia / sol", ex: "今日はいい日です。", exFuri: "きょうはいいひです。", exTr: "Hoje é um bom dia." },
+    { jp: "本", furigana: "ほん", romaji: "hon", meaning: "livro", ex: "この本は面白いです。", exFuri: "このほんはおもしろいです。", exTr: "Este livro é interessante." },
+    { jp: "時間", furigana: "じかん", romaji: "jikan", meaning: "tempo / hora", ex: "時間がありません。", exFuri: "じかんがありません。", exTr: "Não tenho tempo." },
+    { jp: "今", furigana: "いま", romaji: "ima", meaning: "agora", ex: "今、何時ですか。", exFuri: "いま、なんじですか。", exTr: "Que horas são agora?" },
+    { jp: "見る", furigana: "みる", romaji: "miru", meaning: "ver / olhar", ex: "映画を見ます。", exFuri: "えいがをみます。", exTr: "Vou assistir a um filme." },
+    { jp: "行く", furigana: "いく", romaji: "iku", meaning: "ir", ex: "学校に行きます。", exFuri: "がっこうにいきます。", exTr: "Vou para a escola." },
+    { jp: "来る", furigana: "くる", romaji: "kuru", meaning: "vir", ex: "友達が来ます。", exFuri: "ともだちがきます。", exTr: "Um amigo vem (virá)." },
+    { jp: "食べる", furigana: "たべる", romaji: "taberu", meaning: "comer", ex: "朝ご飯を食べます。", exFuri: "あさごはんをたべます。", exTr: "Eu como o café da manhã." },
+    { jp: "飲む", furigana: "のむ", romaji: "nomu", meaning: "beber", ex: "水を飲みます。", exFuri: "みずをのみます。", exTr: "Eu bebo água." },
+    { jp: "言う", furigana: "いう", romaji: "iu", meaning: "dizer / falar", ex: "名前を言ってください。", exFuri: "なまえをいってください。", exTr: "Por favor, diga seu nome." },
+    { jp: "大きい", furigana: "おおきい", romaji: "ookii", meaning: "grande", ex: "大きい家ですね。", exFuri: "おおきいいえですね。", exTr: "É uma casa grande, não é?" },
+    { jp: "小さい", furigana: "ちいさい", romaji: "chiisai", meaning: "pequeno", ex: "小さい犬がいます。", exFuri: "ちいさいいぬがいます。", exTr: "Há um cachorro pequeno." },
+    { jp: "good", furigana: "いい", romaji: "ii", meaning: "bom", ex: "天気がいいです。", exFuri: "てんきがいいです。", exTr: "O tempo está bom." },
+    { jp: "新しい", furigana: "あたらしい", romaji: "atarashii", meaning: "novo", ex: "新しい車を買いました。", exFuri: "あたらしいくるまをかいました。", exTr: "Comprei um carro novo." },
+    { jp: "水", furigana: "みず", romaji: "mizu", meaning: "água", ex: "冷たい水をください。", exFuri: "つめたいみずをください。", exTr: "Água gelada, por favor." },
+    { jp: "家", furigana: "いえ", romaji: "ie", meaning: "casa", ex: "家に帰ります。", exFuri: "いえにかえります。", exTr: "Vou voltar para casa." },
+    { jp: "学校", furigana: "がっこう", romaji: "gakkou", meaning: "escola", ex: "学校は楽しいです。", exFuri: "がっこうはたのしいです。", exTr: "A escola é divertida." },
+    { jp: "友達", furigana: "ともだち", romaji: "tomodachi", meaning: "amigo", ex: "友達と話します。", exFuri: "ともだちとはなします。", exTr: "Converso com um amigo." },
+];
+// pequena correção do item "good" (mantemos いい como kana de destaque)
+REAL_WORDS[14] = { jp: "いい", furigana: "いい", romaji: "ii", meaning: "bom", ex: "天気がいいです。", exFuri: "てんきがいいです。", exTr: "O tempo está bom." };
+
+/* ------------------------------------------------------------------ */
+/*  GERADOR DE MOCK — para as palavras/módulos restantes              */
+/* ------------------------------------------------------------------ */
+const KANJI_POOL = "日月火水木金土山川田中文字学校時間先生学生会社仕事電話手紙花鳥空雲雨雪風海道車駅店町村市県国語数科目体心音色光力声".split("");
+const KANA_POOL = "あいうえおかきくけこさしすせそたちつてとなにぬねのはひふへほまみむめもやゆよらりるれろ".split("");
+const MEANINGS = ["coisa","lugar","trabalho","palavra","som","cor","força","corpo","coração","caminho","loja","cidade","país","língua","número","matéria","carta","flor","pássaro","céu","nuvem","chuva","neve","vento","mar","carro","estação","montanha","rio","campo"];
+
+function pick(arr, seed) { return arr[seed % arr.length]; }
+
+function generateWord(globalIndex) {
+    const k1 = pick(KANJI_POOL, globalIndex * 7 + 3);
+    const k2 = pick(KANJI_POOL, globalIndex * 13 + 5);
+    const jp = (globalIndex % 3 === 0) ? k1 : k1 + k2;
+    const furigana = pick(KANA_POOL, globalIndex * 3) + pick(KANA_POOL, globalIndex * 5 + 1) + (jp.length > 1 ? pick(KANA_POOL, globalIndex * 11) : "");
+    const meaning = pick(MEANINGS, globalIndex) + (globalIndex % 4 === 0 ? "" : " (" + (globalIndex + 1) + ")");
+    return {
+        jp,
+        furigana,
+        romaji: furigana,
+        meaning,
+        ex: jp + "を使います。",
+        exFuri: furigana + "をつかいます。",
+        exTr: "Eu uso \"" + meaning + "\".",
+        mock: true,
+    };
+}
+
+const TOTAL_MODULES = 15;
+const LESSONS_PER_MODULE = 10;
+const WORDS_PER_LESSON = 20;
+
+// Retorna as 20 palavras de uma aula específica (módulo 0-index, aula 0-index)
+function getLessonWords(moduleIdx, lessonIdx) {
+    if (moduleIdx === 0 && lessonIdx === 0) return REAL_WORDS;
+    const start = (moduleIdx * LESSONS_PER_MODULE + lessonIdx) * WORDS_PER_LESSON;
+    return Array.from({ length: WORDS_PER_LESSON }, (_, i) => generateWord(start + i));
+}
+
+const MODULE_THEMES = [
+    "Fundamentos","Vida Diária","Comida e Bebida","Pessoas e Família","Casa e Cidade",
+    "Trabalho e Escola","Tempo e Clima","Verbos Essenciais","Adjetivos","Viagem e Transporte",
+    "Corpo e Saúde","Natureza","Sentimentos","Tecnologia","Avançado",
+];
+
+/* ------------------------------------------------------------------ */
+/*  PERSISTÊNCIA (localStorage)                                        */
+/* ------------------------------------------------------------------ */
+const STORAGE_KEY = "okane_jp_progress_v1";
+
+function loadProgress() {
+    try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return defaultProgress();
+        const p = JSON.parse(raw);
+        return { ...defaultProgress(), ...p };
+    } catch { return defaultProgress(); }
+}
+function defaultProgress() {
+    return {
+        knownWords: {},        // { "m-l-i": true }
+        completedLessons: {},  // { "m-l": true }
+        streak: 0,
+        lastStudyDate: null,   // "YYYY-MM-DD"
+        theme: null,           // null=auto, 'dark', 'light'
+        showFurigana: true,
+    };
+}
+function saveProgress(p) {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(p)); } catch {}
+}
+
+function todayStr() {
+    const d = new Date();
+    return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+}
+function daysBetween(a, b) {
+    const da = new Date(a + "T00:00:00"), db = new Date(b + "T00:00:00");
+    return Math.round((db - da) / 86400000);
+}
+
+/* ------------------------------------------------------------------ */
+/*  ÁUDIO (Web Speech API — leitura em japonês)                        */
+/* ------------------------------------------------------------------ */
+function speak(text) {
+    if (!("speechSynthesis" in window)) return;
+    try {
+        window.speechSynthesis.cancel();
+        const u = new SpeechSynthesisUtterance(text);
+        u.lang = "ja-JP";
+        u.rate = 0.9;
+        const voices = window.speechSynthesis.getVoices();
+        const jp = voices.find(v => v.lang && v.lang.toLowerCase().startsWith("ja"));
+        if (jp) u.voice = jp;
+        window.speechSynthesis.speak(u);
+    } catch {}
+}
+
+/* ------------------------------------------------------------------ */
+/*  Componente: Furigana ruby                                          */
+/* ------------------------------------------------------------------ */
+function Ruby({ jp, furigana, show, size = "text-7xl sm:text-8xl" }) {
+    return (
+        <div className={"font-jp font-semibold text-slate-900 dark:text-white leading-tight " + size}>
+            {show ? (
+                <ruby>{jp}<rt>{furigana}</rt></ruby>
+            ) : (
+                <span>{jp}</span>
+            )}
+        </div>
+    );
+}
+
+/* ================================================================== */
+/*  APP                                                                */
+/* ================================================================== */
+function App() {
+    const [progress, setProgress] = useState(loadProgress);
+    const [view, setView] = useState({ screen: "dashboard" }); // dashboard | modules | lessons | flashcards
+
+    // aplica tema
+    useEffect(() => {
+        const root = document.documentElement;
+        let dark;
+        if (progress.theme === "dark") dark = true;
+        else if (progress.theme === "light") dark = false;
+        else dark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+        root.classList.toggle("dark", dark);
+    }, [progress.theme]);
+
+    // pré-carrega vozes de TTS
+    useEffect(() => {
+        if ("speechSynthesis" in window) window.speechSynthesis.getVoices();
+    }, []);
+
+    const update = useCallback((patch) => {
+        setProgress(prev => {
+            const next = typeof patch === "function" ? patch(prev) : { ...prev, ...patch };
+            saveProgress(next);
+            return next;
+        });
+    }, []);
+
+    // marca estudo de hoje -> atualiza streak
+    const registerStudy = useCallback(() => {
+        update(prev => {
+            const t = todayStr();
+            if (prev.lastStudyDate === t) return prev;
+            let streak = 1;
+            if (prev.lastStudyDate) {
+                const diff = daysBetween(prev.lastStudyDate, t);
+                if (diff === 1) streak = prev.streak + 1;
+                else if (diff === 0) streak = prev.streak;
+            }
+            return { ...prev, streak, lastStudyDate: t };
+        });
+    }, [update]);
+
+    // estatísticas
+    const stats = useMemo(() => {
+        const totalWords = TOTAL_MODULES * LESSONS_PER_MODULE * WORDS_PER_LESSON;
+        const knownCount = Object.keys(progress.knownWords).filter(k => progress.knownWords[k]).length;
+        const completedLessonsCount = Object.keys(progress.completedLessons).filter(k => progress.completedLessons[k]).length;
+        let completedModules = 0;
+        for (let m = 0; m < TOTAL_MODULES; m++) {
+            let all = true;
+            for (let l = 0; l < LESSONS_PER_MODULE; l++) {
+                if (!progress.completedLessons[m + "-" + l]) { all = false; break; }
+            }
+            if (all) completedModules++;
+        }
+        return { totalWords, knownCount, completedLessonsCount, completedModules };
+    }, [progress]);
+
+    const toggleTheme = () => {
+        const isDark = document.documentElement.classList.contains("dark");
+        update({ theme: isDark ? "light" : "dark" });
+    };
+
+    return (
+        <div className="min-h-screen flex flex-col text-slate-800 dark:text-slate-100">
+            <Header view={view} setView={setView} onToggleTheme={toggleTheme} streak={progress.streak} />
+            <main className="flex-1 w-full max-w-5xl mx-auto px-4 sm:px-6 pb-24 pt-4">
+                {view.screen === "dashboard" && (
+                    <Dashboard stats={stats} progress={progress} setView={setView} />
+                )}
+                {view.screen === "modules" && (
+                    <ModulesList progress={progress} setView={setView} />
+                )}
+                {view.screen === "lessons" && (
+                    <LessonsList moduleIdx={view.moduleIdx} progress={progress} setView={setView} />
+                )}
+                {view.screen === "flashcards" && (
+                    <Flashcards
+                        moduleIdx={view.moduleIdx}
+                        lessonIdx={view.lessonIdx}
+                        progress={progress}
+                        update={update}
+                        registerStudy={registerStudy}
+                        setView={setView}
+                    />
+                )}
+            </main>
+            <BottomNav view={view} setView={setView} />
+        </div>
+    );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Header                                                             */
+/* ------------------------------------------------------------------ */
+function Header({ view, setView, onToggleTheme, streak }) {
+    return (
+        <header className="sticky top-0 z-20 backdrop-blur-md bg-white/80 dark:bg-slate-900/80 border-b border-slate-200 dark:border-slate-800">
+            <div className="max-w-5xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+                <button onClick={() => setView({ screen: "dashboard" })} className="flex items-center gap-2 group">
+                    <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-red-500 to-rose-600 flex items-center justify-center text-white font-jp font-bold text-lg shadow-md group-active:scale-95 transition">字</div>
+                    <div className="text-left leading-tight">
+                        <div className="font-bold tracking-tight">Okane <span className="font-jp text-red-500">日本語</span></div>
+                        <div className="text-[10px] uppercase tracking-widest text-slate-400">3000 palavras</div>
+                    </div>
+                </button>
+                <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-orange-100 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 text-sm font-semibold">
+                        <Icon name="Flame" className="w-4 h-4" /> {streak}
+                    </div>
+                    <button onClick={onToggleTheme} aria-label="Alternar tema" className="w-9 h-9 rounded-full grid place-items-center hover:bg-slate-100 dark:hover:bg-slate-800 transition">
+                        <Icon name="SunMoon" className="w-5 h-5" />
+                    </button>
+                </div>
+            </div>
+        </header>
+    );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Dashboard                                                          */
+/* ------------------------------------------------------------------ */
+function StatCard({ icon, value, label, sub, color }) {
+    return (
+        <div className="bg-white dark:bg-slate-900 rounded-2xl p-5 border border-slate-200 dark:border-slate-800 shadow-sm animate-pop">
+            <div className={"w-10 h-10 rounded-xl grid place-items-center mb-3 " + color}>
+                <Icon name={icon} className="w-5 h-5 text-white" />
+            </div>
+            <div className="text-3xl font-extrabold tracking-tight">{value}</div>
+            <div className="text-sm text-slate-500 dark:text-slate-400">{label}</div>
+            {sub && <div className="text-xs text-slate-400 mt-1">{sub}</div>}
+        </div>
+    );
+}
+
+function Dashboard({ stats, progress, setView }) {
+    const pct = Math.round((stats.knownCount / stats.totalWords) * 100);
+    // próxima aula sugerida
+    let next = null;
+    outer:
+    for (let m = 0; m < TOTAL_MODULES; m++) {
+        for (let l = 0; l < LESSONS_PER_MODULE; l++) {
+            if (!progress.completedLessons[m + "-" + l]) { next = { m, l }; break outer; }
+        }
+    }
+    return (
+        <div className="space-y-6 animate-slideup">
+            <section className="rounded-3xl p-6 sm:p-8 bg-gradient-to-br from-red-500 via-rose-500 to-pink-600 text-white shadow-lg relative overflow-hidden">
+                <div className="absolute -right-6 -top-8 font-jp text-[120px] opacity-10 select-none">学</div>
+                <p className="text-white/80 text-sm">Bem-vindo de volta 👋</p>
+                <h1 className="text-2xl sm:text-3xl font-extrabold mt-1">Vamos estudar japonês!</h1>
+                <div className="mt-5">
+                    <div className="flex justify-between text-sm mb-1.5">
+                        <span className="text-white/90">Progresso geral</span>
+                        <span className="font-semibold">{pct}%</span>
+                    </div>
+                    <div className="h-3 rounded-full bg-white/25 overflow-hidden">
+                        <div className="h-full bg-white rounded-full transition-all duration-500" style={{ width: pct + "%" }} />
+                    </div>
+                    <p className="text-white/80 text-xs mt-2">{stats.knownCount} de {stats.totalWords} palavras aprendidas</p>
+                </div>
+                <button onClick={() => next ? setView({ screen: "flashcards", moduleIdx: next.m, lessonIdx: next.l }) : setView({ screen: "modules" })}
+                    className="mt-5 inline-flex items-center gap-2 bg-white text-red-600 font-bold px-5 py-2.5 rounded-full shadow active:scale-95 transition">
+                    <Icon name="Play" className="w-4 h-4" />
+                    {next ? `Continuar — Módulo ${next.m + 1}, Aula ${next.l + 1}` : "Revisar tudo"}
+                </button>
+            </section>
+
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                <StatCard icon="Layers" value={stats.completedModules + "/" + TOTAL_MODULES} label="Módulos concluídos" color="bg-indigo-500" />
+                <StatCard icon="BookOpenCheck" value={stats.completedLessonsCount} label="Aulas concluídas" color="bg-emerald-500" />
+                <StatCard icon="GraduationCap" value={stats.knownCount} label="Palavras aprendidas" color="bg-sky-500" />
+                <StatCard icon="Flame" value={progress.streak} label="Dias seguidos (streak)" sub={progress.lastStudyDate ? "Último: " + progress.lastStudyDate : "Comece hoje!"} color="bg-orange-500" />
+            </div>
+
+            <section>
+                <div className="flex items-center justify-between mb-3">
+                    <h2 className="text-lg font-bold">Módulos</h2>
+                    <button onClick={() => setView({ screen: "modules" })} className="text-sm font-semibold text-red-500 hover:underline flex items-center gap-1">
+                        Ver todos <Icon name="ChevronRight" className="w-4 h-4" />
+                    </button>
+                </div>
+                <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {[0, 1, 2].map(m => <ModuleCard key={m} moduleIdx={m} progress={progress} setView={setView} />)}
+                </div>
+            </section>
+        </div>
+    );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Módulos                                                            */
+/* ------------------------------------------------------------------ */
+function moduleStats(moduleIdx, progress) {
+    let lessonsDone = 0, known = 0;
+    for (let l = 0; l < LESSONS_PER_MODULE; l++) {
+        if (progress.completedLessons[moduleIdx + "-" + l]) lessonsDone++;
+        for (let i = 0; i < WORDS_PER_LESSON; i++) {
+            if (progress.knownWords[moduleIdx + "-" + l + "-" + i]) known++;
+        }
+    }
+    return { lessonsDone, known, totalWords: LESSONS_PER_MODULE * WORDS_PER_LESSON };
+}
+
+function ModuleCard({ moduleIdx, progress, setView }) {
+    const { lessonsDone, known, totalWords } = moduleStats(moduleIdx, progress);
+    const pct = Math.round((lessonsDone / LESSONS_PER_MODULE) * 100);
+    const done = lessonsDone === LESSONS_PER_MODULE;
+    return (
+        <button onClick={() => setView({ screen: "lessons", moduleIdx })}
+            className="text-left bg-white dark:bg-slate-900 rounded-2xl p-5 border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md hover:-translate-y-0.5 active:scale-[.99] transition group">
+            <div className="flex items-start justify-between">
+                <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-red-500 to-rose-600 text-white grid place-items-center font-bold shadow">{moduleIdx + 1}</div>
+                {done
+                    ? <span className="text-emerald-500"><Icon name="CircleCheckBig" className="w-6 h-6" /></span>
+                    : <span className="text-xs font-semibold text-slate-400">{pct}%</span>}
+            </div>
+            <h3 className="font-bold mt-3 group-hover:text-red-500 transition">Módulo {moduleIdx + 1}</h3>
+            <p className="text-sm text-slate-500 dark:text-slate-400">{MODULE_THEMES[moduleIdx]}</p>
+            <div className="mt-3 h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+                <div className="h-full bg-red-500 rounded-full transition-all" style={{ width: pct + "%" }} />
+            </div>
+            <div className="flex justify-between text-xs text-slate-400 mt-2">
+                <span>{lessonsDone}/{LESSONS_PER_MODULE} aulas</span>
+                <span>{known}/{totalWords} palavras</span>
+            </div>
+        </button>
+    );
+}
+
+function ModulesList({ progress, setView }) {
+    return (
+        <div className="animate-slideup">
+            <PageTitle title="Módulos" subtitle="15 módulos · 200 palavras cada" />
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {Array.from({ length: TOTAL_MODULES }, (_, m) => (
+                    <ModuleCard key={m} moduleIdx={m} progress={progress} setView={setView} />
+                ))}
+            </div>
+        </div>
+    );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Aulas                                                              */
+/* ------------------------------------------------------------------ */
+function LessonsList({ moduleIdx, progress, setView }) {
+    return (
+        <div className="animate-slideup">
+            <button onClick={() => setView({ screen: "modules" })} className="inline-flex items-center gap-1 text-sm font-semibold text-slate-500 hover:text-red-500 mb-3 transition">
+                <Icon name="ChevronLeft" className="w-4 h-4" /> Módulos
+            </button>
+            <PageTitle title={"Módulo " + (moduleIdx + 1)} subtitle={MODULE_THEMES[moduleIdx] + " · 10 aulas"} />
+            <div className="space-y-3">
+                {Array.from({ length: LESSONS_PER_MODULE }, (_, l) => {
+                    const done = !!progress.completedLessons[moduleIdx + "-" + l];
+                    let known = 0;
+                    for (let i = 0; i < WORDS_PER_LESSON; i++) if (progress.knownWords[moduleIdx + "-" + l + "-" + i]) known++;
+                    return (
+                        <button key={l} onClick={() => setView({ screen: "flashcards", moduleIdx, lessonIdx: l })}
+                            className="w-full flex items-center gap-4 bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md active:scale-[.99] transition group">
+                            <div className={"w-11 h-11 rounded-xl grid place-items-center font-bold shrink-0 " + (done ? "bg-emerald-500 text-white" : "bg-slate-100 dark:bg-slate-800 text-slate-500")}>
+                                {done ? <Icon name="Check" className="w-5 h-5" /> : (l + 1)}
+                            </div>
+                            <div className="flex-1 text-left">
+                                <div className="font-semibold group-hover:text-red-500 transition">Aula {l + 1}</div>
+                                <div className="text-xs text-slate-400">{WORDS_PER_LESSON} palavras · {known} aprendidas</div>
+                                <div className="mt-2 h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+                                    <div className="h-full bg-red-500 rounded-full transition-all" style={{ width: (known / WORDS_PER_LESSON * 100) + "%" }} />
+                                </div>
+                            </div>
+                            <Icon name="ChevronRight" className="w-5 h-5 text-slate-300 group-hover:text-red-500 transition" />
+                        </button>
+                    );
+                })}
+            </div>
+        </div>
+    );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Flashcards                                                         */
+/* ------------------------------------------------------------------ */
+function Flashcards({ moduleIdx, lessonIdx, progress, update, registerStudy, setView }) {
+    const words = useMemo(() => getLessonWords(moduleIdx, lessonIdx), [moduleIdx, lessonIdx]);
+    const [queue, setQueue] = useState(() => words.map((_, i) => i));
+    const [pos, setPos] = useState(0);
+    const [flipped, setFlipped] = useState(false);
+    const [showFuri, setShowFuri] = useState(progress.showFurigana);
+    const [learned, setLearned] = useState(0);
+    const [finished, setFinished] = useState(false);
+
+    const total = words.length;
+    const idx = queue[pos];
+    const word = words[idx];
+    const doneCount = total - queue.length + pos; // aproximação para barra
+    const barPct = Math.round(((total - queue.length) / total) * 100);
+
+    useEffect(() => { registerStudy(); }, [registerStudy]);
+
+    const handleAnswer = (knows) => {
+        const key = moduleIdx + "-" + lessonIdx + "-" + idx;
+        if (knows) {
+            update(prev => ({ ...prev, knownWords: { ...prev.knownWords, [key]: true } }));
+            setLearned(n => n + 1);
+            // remove da fila
+            const newQueue = queue.filter((_, i) => i !== pos);
+            advance(newQueue, pos, knows);
+        } else {
+            // move o card para o final da fila
+            const newQueue = queue.filter((_, i) => i !== pos);
+            newQueue.push(idx);
+            advance(newQueue, pos, knows);
+        }
+    };
+
+    const advance = (newQueue, oldPos) => {
+        setFlipped(false);
+        if (newQueue.length === 0) {
+            // aula concluída
+            update(prev => ({ ...prev, completedLessons: { ...prev.completedLessons, [moduleIdx + "-" + lessonIdx]: true } }));
+            setFinished(true);
+            return;
+        }
+        setQueue(newQueue);
+        setPos(oldPos >= newQueue.length ? 0 : oldPos);
+    };
+
+    const restart = () => {
+        setQueue(words.map((_, i) => i));
+        setPos(0); setFlipped(false); setLearned(0); setFinished(false);
+    };
+
+    if (finished) {
+        return (
+            <div className="animate-slideup max-w-md mx-auto text-center pt-8">
+                <div className="text-7xl mb-4">🎉</div>
+                <h2 className="text-2xl font-extrabold">Aula concluída!</h2>
+                <p className="text-slate-500 dark:text-slate-400 mt-1">Módulo {moduleIdx + 1} · Aula {lessonIdx + 1}</p>
+                <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 border border-slate-200 dark:border-slate-800 mt-6 shadow-sm">
+                    <div className="text-5xl font-extrabold text-emerald-500">{learned}/{total}</div>
+                    <p className="text-sm text-slate-500 mt-1">palavras marcadas como "já sei"</p>
+                </div>
+                <div className="flex flex-col gap-3 mt-6">
+                    {lessonIdx < LESSONS_PER_MODULE - 1 && (
+                        <button onClick={() => { setView({ screen: "flashcards", moduleIdx, lessonIdx: lessonIdx + 1 }); restart(); }}
+                            className="bg-red-500 hover:bg-red-600 text-white font-bold py-3 rounded-2xl active:scale-95 transition flex items-center justify-center gap-2">
+                            Próxima aula <Icon name="ArrowRight" className="w-5 h-5" />
+                        </button>
+                    )}
+                    <button onClick={restart} className="bg-slate-100 dark:bg-slate-800 font-semibold py-3 rounded-2xl active:scale-95 transition flex items-center justify-center gap-2">
+                        <Icon name="RotateCcw" className="w-4 h-4" /> Refazer aula
+                    </button>
+                    <button onClick={() => setView({ screen: "lessons", moduleIdx })} className="text-slate-500 font-semibold py-2">Voltar às aulas</button>
+                </div>
+            </div>
+        );
+    }
+
+    return (
+        <div className="animate-slideup max-w-xl mx-auto">
+            {/* Topo */}
+            <div className="flex items-center gap-3 mb-4">
+                <button onClick={() => setView({ screen: "lessons", moduleIdx })} className="w-9 h-9 rounded-full grid place-items-center hover:bg-slate-100 dark:hover:bg-slate-800 transition shrink-0">
+                    <Icon name="X" className="w-5 h-5" />
+                </button>
+                <div className="flex-1 h-2.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+                    <div className="h-full bg-gradient-to-r from-red-500 to-rose-500 rounded-full transition-all duration-300" style={{ width: barPct + "%" }} />
+                </div>
+                <span className="text-sm font-semibold text-slate-500 tabular-nums shrink-0">{queue.length} restam</span>
+            </div>
+            <div className="text-center text-xs text-slate-400 mb-3">Módulo {moduleIdx + 1} · Aula {lessonIdx + 1}</div>
+
+            {/* Card */}
+            <div key={idx} className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-lg p-6 sm:p-8 animate-flip">
+                {word.mock && (
+                    <div className="text-[10px] uppercase tracking-widest text-amber-500 bg-amber-50 dark:bg-amber-500/10 rounded-full px-2 py-0.5 inline-block mb-3">demo / mock</div>
+                )}
+                <div className="flex flex-col items-center text-center min-h-[180px] justify-center">
+                    <Ruby jp={word.jp} furigana={word.furigana} show={showFuri} />
+                    <div className="mt-3 flex items-center gap-3">
+                        <button onClick={() => setShowFuri(s => !s)}
+                            className="text-sm font-semibold text-red-500 inline-flex items-center gap-1 hover:underline">
+                            <Icon name={showFuri ? "EyeOff" : "Eye"} className="w-4 h-4" />
+                            {showFuri ? "Ocultar furigana" : "Mostrar furigana"}
+                        </button>
+                        <button onClick={() => speak(word.jp)} className="w-9 h-9 rounded-full bg-red-50 dark:bg-red-500/10 text-red-500 grid place-items-center active:scale-90 transition" aria-label="Ouvir palavra">
+                            <Icon name="Volume2" className="w-5 h-5" />
+                        </button>
+                    </div>
+                    {!showFuri && <div className="text-xs text-slate-400 mt-1 font-jp">leitura: {word.romaji}</div>}
+                </div>
+
+                {/* Verso */}
+                {!flipped ? (
+                    <button onClick={() => setFlipped(true)}
+                        className="mt-6 w-full bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-bold py-3.5 rounded-2xl active:scale-95 transition flex items-center justify-center gap-2">
+                        <Icon name="Eye" className="w-5 h-5" /> Mostrar significado
+                    </button>
+                ) : (
+                    <div className="mt-6 animate-pop space-y-4">
+                        <div className="text-center">
+                            <div className="text-xs uppercase tracking-widest text-slate-400">Significado</div>
+                            <div className="text-2xl font-extrabold mt-1">{word.meaning}</div>
+                        </div>
+                        <div className="bg-slate-50 dark:bg-slate-800/60 rounded-2xl p-4">
+                            <div className="flex items-center justify-between mb-2">
+                                <span className="text-xs uppercase tracking-widest text-slate-400">Exemplo</span>
+                                <button onClick={() => speak(word.ex)} className="text-red-500 inline-flex items-center gap-1 text-xs font-semibold active:scale-90 transition">
+                                    <Icon name="Volume2" className="w-4 h-4" /> Ouvir frase
+                                </button>
+                            </div>
+                            <p className="font-jp text-lg text-slate-900 dark:text-white">
+                                {showFuri ? <ruby>{word.ex}<rt>{word.exFuri}</rt></ruby> : word.ex}
+                            </p>
+                            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">{word.exTr}</p>
+                        </div>
+                    </div>
+                )}
+            </div>
+
+            {/* Botões de feedback */}
+            <div className="grid grid-cols-2 gap-3 mt-5">
+                <button onClick={() => handleAnswer(false)}
+                    className="bg-white dark:bg-slate-900 border-2 border-amber-300 dark:border-amber-500/40 text-amber-600 dark:text-amber-400 font-bold py-4 rounded-2xl active:scale-95 transition flex flex-col items-center gap-1">
+                    <Icon name="RefreshCw" className="w-5 h-5" />
+                    Ainda não sei
+                </button>
+                <button onClick={() => handleAnswer(true)}
+                    className="bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-4 rounded-2xl active:scale-95 transition flex flex-col items-center gap-1 shadow-md">
+                    <Icon name="Check" className="w-5 h-5" />
+                    Já sei
+                </button>
+            </div>
+            <p className="text-center text-xs text-slate-400 mt-3">"Ainda não sei" repete o card no fim da aula.</p>
+        </div>
+    );
+}
+
+/* ------------------------------------------------------------------ */
+/*  UI helpers                                                         */
+/* ------------------------------------------------------------------ */
+function PageTitle({ title, subtitle }) {
+    return (
+        <div className="mb-5">
+            <h1 className="text-2xl font-extrabold tracking-tight">{title}</h1>
+            {subtitle && <p className="text-slate-500 dark:text-slate-400 text-sm">{subtitle}</p>}
+        </div>
+    );
+}
+
+function BottomNav({ view, setView }) {
+    const items = [
+        { id: "dashboard", icon: "House", label: "Início" },
+        { id: "modules", icon: "Layers", label: "Módulos" },
+    ];
+    const active = view.screen === "dashboard" ? "dashboard" : "modules";
+    return (
+        <nav className="fixed bottom-0 inset-x-0 z-20 sm:hidden bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-t border-slate-200 dark:border-slate-800">
+            <div className="grid grid-cols-2 max-w-md mx-auto">
+                {items.map(it => (
+                    <button key={it.id} onClick={() => setView({ screen: it.id })}
+                        className={"flex flex-col items-center gap-0.5 py-3 transition " + (active === it.id ? "text-red-500" : "text-slate-400")}>
+                        <Icon name={it.icon} className="w-5 h-5" />
+                        <span className="text-[11px] font-semibold">{it.label}</span>
+                    </button>
+                ))}
+            </div>
+        </nav>
+    );
+}
+
+/* ------------------------------------------------------------------ */
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+    </script>
+</body>
+</html>
