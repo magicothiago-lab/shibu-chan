@@ -325,7 +325,7 @@ function LoadingVocab() {
 /* ================================================================== */
 function App() {
     const [progress, setProgress] = useState(loadProgress);
-    const [view, setView] = useState({ screen: "dashboard" }); // dashboard | modules | lessons | flashcards
+    const [view, setView] = useState({ screen: "dashboard" }); // dashboard | modules | lessons | flashcards | quiz
     const [dataReady, setDataReady] = useState(() => DATASET.length > 0);
 
     // aplica tema
@@ -416,6 +416,17 @@ function App() {
                     <Flashcards
                         key={view.mode === "review" ? "review" : view.moduleIdx + "-" + view.lessonIdx}
                         mode={view.mode === "review" ? "review" : "lesson"}
+                        moduleIdx={view.moduleIdx}
+                        lessonIdx={view.lessonIdx}
+                        progress={progress}
+                        update={update}
+                        registerStudy={registerStudy}
+                        setView={setView}
+                    />
+                ) : <LoadingVocab />)}
+                {view.screen === "quiz" && (dataReady ? (
+                    <Quiz
+                        key={"quiz-" + view.moduleIdx + "-" + view.lessonIdx + "-" + (view.nonce || 0)}
                         moduleIdx={view.moduleIdx}
                         lessonIdx={view.lessonIdx}
                         progress={progress}
@@ -624,20 +635,27 @@ function LessonsList({ moduleIdx, progress, setView }) {
                     let known = 0;
                     for (let i = 0; i < WORDS_PER_LESSON; i++) if (progress.knownWords[moduleIdx + "-" + l + "-" + i]) known++;
                     return (
-                        <button key={l} onClick={() => setView({ screen: "flashcards", moduleIdx, lessonIdx: l })}
-                            className="w-full flex items-center gap-4 bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md active:scale-[.99] transition group">
-                            <div className={"w-11 h-11 rounded-xl grid place-items-center font-bold shrink-0 " + (done ? "bg-emerald-500 text-white" : "bg-slate-100 dark:bg-slate-800 text-slate-500")}>
-                                {done ? <Icon name="Check" className="w-5 h-5" /> : (l + 1)}
-                            </div>
-                            <div className="flex-1 text-left">
-                                <div className="font-semibold group-hover:text-red-500 transition">Aula {l + 1}</div>
-                                <div className="text-xs text-slate-400">{WORDS_PER_LESSON} palavras · {known} aprendidas</div>
-                                <div className="mt-2 h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
-                                    <div className="h-full bg-red-500 rounded-full transition-all" style={{ width: (known / WORDS_PER_LESSON * 100) + "%" }} />
+                        <div key={l} className="flex items-center gap-2 bg-white dark:bg-slate-900 rounded-2xl p-2 pr-3 border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md transition">
+                            <button onClick={() => setView({ screen: "flashcards", moduleIdx, lessonIdx: l })}
+                                className="flex-1 min-w-0 flex items-center gap-4 p-2 rounded-xl active:scale-[.99] transition group text-left">
+                                <div className={"w-11 h-11 rounded-xl grid place-items-center font-bold shrink-0 " + (done ? "bg-emerald-500 text-white" : "bg-slate-100 dark:bg-slate-800 text-slate-500")}>
+                                    {done ? <Icon name="Check" className="w-5 h-5" /> : (l + 1)}
                                 </div>
-                            </div>
-                            <Icon name="ChevronRight" className="w-5 h-5 text-slate-300 group-hover:text-red-500 transition" />
-                        </button>
+                                <div className="flex-1 min-w-0">
+                                    <div className="font-semibold group-hover:text-red-500 transition">Aula {l + 1}</div>
+                                    <div className="text-xs text-slate-400">{WORDS_PER_LESSON} palavras · {known} aprendidas</div>
+                                    <div className="mt-2 h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+                                        <div className="h-full bg-red-500 rounded-full transition-all" style={{ width: (known / WORDS_PER_LESSON * 100) + "%" }} />
+                                    </div>
+                                </div>
+                            </button>
+                            <button onClick={() => setView({ screen: "quiz", moduleIdx, lessonIdx: l })}
+                                title="Teste rápido" aria-label={"Teste da Aula " + (l + 1)}
+                                className="shrink-0 flex flex-col items-center justify-center gap-0.5 w-16 py-2 rounded-xl bg-red-50 dark:bg-red-500/10 text-red-500 hover:bg-red-100 dark:hover:bg-red-500/20 active:scale-95 transition">
+                                <Icon name="ListChecks" className="w-5 h-5" />
+                                <span className="text-[11px] font-bold">Teste</span>
+                            </button>
+                        </div>
                     );
                 })}
             </div>
@@ -748,9 +766,15 @@ function Flashcards({ mode, moduleIdx, lessonIdx, progress, update, registerStud
                 </div>
                 <p className="text-xs text-slate-400 mt-4">As palavras voltam para revisão automaticamente na data agendada.</p>
                 <div className="flex flex-col gap-3 mt-6">
+                    {!isReview && (
+                        <button onClick={() => setView({ screen: "quiz", moduleIdx, lessonIdx })}
+                            className="bg-red-500 hover:bg-red-600 text-white font-bold py-3 rounded-2xl active:scale-95 transition flex items-center justify-center gap-2">
+                            <Icon name="ListChecks" className="w-5 h-5" /> Testar o que aprendi
+                        </button>
+                    )}
                     {!isReview && lessonIdx < LESSONS_PER_MODULE - 1 && (
                         <button onClick={() => setView({ screen: "flashcards", mode: "lesson", moduleIdx, lessonIdx: lessonIdx + 1 })}
-                            className="bg-red-500 hover:bg-red-600 text-white font-bold py-3 rounded-2xl active:scale-95 transition flex items-center justify-center gap-2">
+                            className="bg-slate-100 dark:bg-slate-800 font-semibold py-3 rounded-2xl active:scale-95 transition flex items-center justify-center gap-2">
                             Próxima aula <Icon name="ArrowRight" className="w-5 h-5" />
                         </button>
                     )}
@@ -856,6 +880,316 @@ function Flashcards({ mode, moduleIdx, lessonIdx, progress, update, registerStud
                     <p className="text-center text-xs text-slate-400 mt-3">Avalie o quanto lembrou — o tempo até a próxima revisão se ajusta sozinho. <span className="hidden sm:inline">(teclas 1–4)</span></p>
                 </>
             )}
+        </div>
+    );
+}
+
+/* ------------------------------------------------------------------ */
+/*  QUIZ — mini-testes estilo Duolingo (reforço da aula)               */
+/*  Gera ~10 perguntas a partir das 20 palavras da aula, misturando    */
+/*  5 tipos de exercício. Acerto/erro alimentam a repetição espaçada:  */
+/*  errou -> a palavra volta para "Revisar" hoje; acertou -> avança.   */
+/* ------------------------------------------------------------------ */
+function shuffledArr(arr) {
+    const a = arr.slice();
+    for (let k = a.length - 1; k > 0; k--) {
+        const j = Math.floor(Math.random() * (k + 1));
+        const t = a[k]; a[k] = a[j]; a[j] = t;
+    }
+    return a;
+}
+
+// Escolhe até n índices "distratores" cujo `field` é diferente do alvo (sem repetir).
+function pickDistractors(words, targetIdx, field, n) {
+    const seen = {}; seen[words[targetIdx][field]] = true;
+    const out = [];
+    for (const i of shuffledArr(words.map((_, idx) => idx))) {
+        if (i === targetIdx) continue;
+        const v = words[i][field];
+        if (seen[v]) continue;
+        seen[v] = true;
+        out.push(i);
+        if (out.length === n) break;
+    }
+    return out;
+}
+
+const QUIZ_PROMPTS = {
+    jp2pt: "O que significa?",
+    pt2jp: "Escolha a palavra certa:",
+    reading: "Como se lê?",
+    cloze: "Complete a frase:",
+    listen: "O que você ouviu?",
+};
+
+// Monta uma pergunta para a palavra de índice `ti` dentro de `words`.
+function makeQuestion(ti, words, moduleIdx, lessonIdx, ttsOk) {
+    const word = words[ti];
+    const types = ["jp2pt", "pt2jp"];
+    if (word.jp !== word.furigana) types.push("reading");               // leitura (kanji -> kana)
+    if (word.ex && word.ex.indexOf(word.jp) !== -1) types.push("cloze"); // completar a frase
+    if (ttsOk) types.push("listen");                                    // escuta
+    const type = types[Math.floor(Math.random() * types.length)];
+    const field = type === "jp2pt" ? "meaning" : type === "reading" ? "furigana" : "jp";
+    const dist = pickDistractors(words, ti, field, 3);
+    const options = shuffledArr([ti].concat(dist)).map(i => ({ word: words[i], correct: i === ti }));
+    return { type, key: moduleIdx + "-" + lessonIdx + "-" + ti, word, options };
+}
+
+function buildQuiz(moduleIdx, lessonIdx, count) {
+    const words = getLessonWords(moduleIdx, lessonIdx).filter(Boolean);
+    if (words.length < 4) return [];   // precisa de 4 p/ montar alternativas
+    const ttsOk = "speechSynthesis" in window;
+    const targets = shuffledArr(words.map((_, i) => i)).slice(0, Math.min(count || 10, words.length));
+    return targets.map((ti, n) => {
+        const q = makeQuestion(ti, words, moduleIdx, lessonIdx, ttsOk);
+        q.id = n;
+        return q;
+    });
+}
+
+// Palavra japonesa com furigana (para enunciados e opções).
+function QuizWord({ word, big }) {
+    const showRuby = word.jp !== word.furigana;
+    const size = big ? "text-4xl sm:text-5xl" : "text-xl";
+    return (
+        <span className={"font-jp font-bold leading-tight " + size}>
+            {showRuby ? <ruby>{word.jp}<rt>{word.furigana}</rt></ruby> : word.jp}
+        </span>
+    );
+}
+
+function Quiz({ moduleIdx, lessonIdx, progress, update, registerStudy, setView }) {
+    const today = todayStr();
+    const [questions] = useState(() => buildQuiz(moduleIdx, lessonIdx, 10));
+    const [queue, setQueue] = useState(() => questions.map(q => q.id));  // fila de ids
+    const [chosen, setChosen] = useState(null);                         // índice da opção escolhida
+    const [firstSeen, setFirstSeen] = useState({});                     // id -> já tentada? (p/ pontuação)
+    const [score, setScore] = useState(0);                             // acertos de primeira
+    const [finished, setFinished] = useState(false);
+
+    const total = questions.length;
+    const current = queue.length ? queue[0] : -1;
+    const q = current >= 0 ? questions[current] : null;
+    const answered = chosen !== null;
+    const isCorrect = answered && q && q.options[chosen].correct;
+
+    useEffect(() => { if (total > 0) registerStudy(); }, []);
+
+    // Toca o áudio automaticamente nas perguntas de escuta.
+    useEffect(() => {
+        if (!finished && q && q.type === "listen" && chosen === null) speak(q.word.jp);
+    }, [current]);
+
+    const answer = (optIdx) => {
+        if (chosen !== null || !q) return;
+        const correct = q.options[optIdx].correct;
+        setChosen(optIdx);
+        if (firstSeen[q.id]) return;   // repetições (palavra reenfileirada) não regravam o SRS
+        setFirstSeen(s => { const n = { ...s }; n[q.id] = true; return n; });
+        if (correct) setScore(s => s + 1);
+        // Reforço na repetição espaçada (vale a 1ª tentativa): acertou = "Bom";
+        // errou = "De novo" -> a palavra fica vencida hoje e reaparece em "Revisar".
+        const key = q.key;
+        update(prev => {
+            const prevSrs = prev.srs || {};
+            const nextSrs = { ...prevSrs };
+            nextSrs[key] = scheduleReview(prevSrs[key], correct ? 2 : 0, today);
+            return {
+                ...prev,
+                srs: nextSrs,
+                knownWords: correct ? { ...prev.knownWords, [key]: true } : prev.knownWords,
+            };
+        });
+    };
+
+    const next = () => {
+        if (!q) return;
+        const correct = q.options[chosen].correct;
+        const rest = queue.slice(1);
+        const nq = correct ? rest : rest.concat([q.id]);   // errou -> reaparece no fim
+        setChosen(null);
+        if (nq.length === 0) setFinished(true);
+        else setQueue(nq);
+    };
+
+    // Atalhos: 1–4 respondem; Enter/Espaço continua.
+    useEffect(() => {
+        const onKey = (e) => {
+            if (finished || !q) return;
+            if (chosen === null) {
+                const num = parseInt(e.key, 10);
+                if (num >= 1 && num <= q.options.length) { e.preventDefault(); answer(num - 1); }
+            } else if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault(); next();
+            }
+        };
+        window.addEventListener("keydown", onKey);
+        return () => window.removeEventListener("keydown", onKey);
+    }, [chosen, finished, queue]);
+
+    // Sem palavras suficientes (dataset desta aula ainda não carregado).
+    if (total === 0) {
+        return (
+            <div className="animate-slideup max-w-md mx-auto text-center pt-12">
+                <div className="text-6xl mb-4">📭</div>
+                <h2 className="text-xl font-extrabold">Teste indisponível</h2>
+                <p className="text-slate-500 dark:text-slate-400 mt-2">As palavras desta aula ainda não foram carregadas. Tente novamente em instantes.</p>
+                <button onClick={() => setView({ screen: "lessons", moduleIdx })}
+                    className="mt-6 bg-red-500 hover:bg-red-600 text-white font-bold py-3 px-6 rounded-2xl active:scale-95 transition">Voltar às aulas</button>
+            </div>
+        );
+    }
+
+    if (finished) {
+        const pct = Math.round((score / total) * 100);
+        let emoji = "🎉", msg = "Excelente! Você mandou bem.";
+        if (pct < 50) { emoji = "💪"; msg = "Continue praticando — você vai chegar lá!"; }
+        else if (pct < 80) { emoji = "👍"; msg = "Muito bem! Já está pegando o jeito."; }
+        const hasNext = lessonIdx < LESSONS_PER_MODULE - 1;
+        const missed = total - score;
+        return (
+            <div className="animate-slideup max-w-md mx-auto text-center pt-8">
+                <div className="text-7xl mb-4">{emoji}</div>
+                <h2 className="text-2xl font-extrabold">Teste concluído!</h2>
+                <p className="text-slate-500 dark:text-slate-400 mt-1">Módulo {moduleIdx + 1} · Aula {lessonIdx + 1}</p>
+                <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 border border-slate-200 dark:border-slate-800 mt-6 shadow-sm">
+                    <div className="text-5xl font-extrabold text-emerald-500">{score}<span className="text-2xl text-slate-400">/{total}</span></div>
+                    <p className="text-sm text-slate-500 mt-1">acertos de primeira ({pct}%)</p>
+                    <div className="mt-4 h-3 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+                        <div className="h-full bg-emerald-500 rounded-full transition-all duration-500" style={{ width: pct + "%" }} />
+                    </div>
+                    <p className="text-sm font-semibold mt-3">{msg}</p>
+                </div>
+                {missed > 0 && (
+                    <p className="text-xs text-slate-400 mt-4 flex items-center justify-center gap-1">
+                        <Icon name="RefreshCw" className="w-3.5 h-3.5" /> {missed} {missed === 1 ? "palavra que você errou voltou" : "palavras que você errou voltaram"} para a revisão.
+                    </p>
+                )}
+                <div className="flex flex-col gap-3 mt-6">
+                    <button onClick={() => setView({ screen: "quiz", moduleIdx, lessonIdx, nonce: Date.now() })}
+                        className="bg-red-500 hover:bg-red-600 text-white font-bold py-3 rounded-2xl active:scale-95 transition flex items-center justify-center gap-2">
+                        <Icon name="RotateCcw" className="w-5 h-5" /> Refazer teste
+                    </button>
+                    {hasNext && (
+                        <button onClick={() => setView({ screen: "flashcards", mode: "lesson", moduleIdx, lessonIdx: lessonIdx + 1 })}
+                            className="bg-slate-100 dark:bg-slate-800 font-semibold py-3 rounded-2xl active:scale-95 transition flex items-center justify-center gap-2">
+                            Próxima aula <Icon name="ArrowRight" className="w-5 h-5" />
+                        </button>
+                    )}
+                    <button onClick={() => setView({ screen: "lessons", moduleIdx })} className="text-slate-500 font-semibold py-2">Voltar às aulas</button>
+                </div>
+            </div>
+        );
+    }
+
+    const uniqueLeft = new Set(queue).size;
+    const barPct = Math.round(((total - uniqueLeft) / total) * 100);
+    const correctOpt = q.options.find(o => o.correct).word;
+    const correctText = q.type === "jp2pt" ? correctOpt.meaning
+        : q.type === "reading" ? correctOpt.furigana
+        : correctOpt.jp + (correctOpt.jp !== correctOpt.furigana ? "（" + correctOpt.furigana + "）" : "") + " — " + correctOpt.meaning;
+
+    let clozeBefore = "", clozeAfter = "";
+    if (q.type === "cloze") {
+        const at = q.word.ex.indexOf(q.word.jp);
+        clozeBefore = q.word.ex.slice(0, at);
+        clozeAfter = q.word.ex.slice(at + q.word.jp.length);
+    }
+
+    const renderOption = (opt) => {
+        if (q.type === "jp2pt") return <span className="font-semibold">{opt.word.meaning}</span>;
+        if (q.type === "reading") return <span className="font-jp text-xl font-bold">{opt.word.furigana}</span>;
+        return <QuizWord word={opt.word} />;
+    };
+
+    return (
+        <div className="animate-slideup max-w-xl mx-auto">
+            {/* Topo: fechar + barra de progresso + restantes */}
+            <div className="flex items-center gap-3 mb-4">
+                <button onClick={() => setView({ screen: "lessons", moduleIdx })} className="w-9 h-9 rounded-full grid place-items-center hover:bg-slate-100 dark:hover:bg-slate-800 transition shrink-0" aria-label="Fechar">
+                    <Icon name="X" className="w-5 h-5" />
+                </button>
+                <div className="flex-1 h-2.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+                    <div className="h-full bg-gradient-to-r from-red-500 to-rose-500 rounded-full transition-all duration-300" style={{ width: barPct + "%" }} />
+                </div>
+                <span className="text-sm font-semibold text-slate-500 tabular-nums shrink-0">{uniqueLeft}</span>
+            </div>
+            <div className="text-center text-xs text-slate-400 mb-3">
+                <span className="inline-flex items-center gap-1 text-red-500 font-semibold"><Icon name="ListChecks" className="w-3.5 h-3.5" /> Teste</span> · Módulo {moduleIdx + 1} · Aula {lessonIdx + 1}
+            </div>
+
+            {/* Enunciado */}
+            <div className="text-center font-bold text-lg mb-3">{QUIZ_PROMPTS[q.type]}</div>
+            <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-lg p-6 sm:p-8 min-h-[150px] flex flex-col items-center justify-center text-center gap-3">
+                {q.type === "jp2pt" && (
+                    <>
+                        <QuizWord word={q.word} big />
+                        <button onClick={() => speak(q.word.jp)} className="w-9 h-9 rounded-full bg-red-50 dark:bg-red-500/10 text-red-500 grid place-items-center active:scale-90 transition" aria-label="Ouvir">
+                            <Icon name="Volume2" className="w-5 h-5" />
+                        </button>
+                    </>
+                )}
+                {q.type === "pt2jp" && <div className="text-3xl font-extrabold">{q.word.meaning}</div>}
+                {q.type === "reading" && <div className="font-jp text-6xl font-bold text-slate-900 dark:text-white">{q.word.jp}</div>}
+                {q.type === "listen" && (
+                    <>
+                        <button onClick={() => speak(q.word.jp)} className="w-24 h-24 rounded-full bg-gradient-to-br from-red-500 to-rose-600 text-white grid place-items-center shadow-lg active:scale-95 transition" aria-label="Ouvir de novo">
+                            <Icon name="Volume2" className="w-10 h-10" />
+                        </button>
+                        <div className="text-xs text-slate-400">toque para ouvir de novo</div>
+                    </>
+                )}
+                {q.type === "cloze" && (
+                    <>
+                        <p className="font-jp text-2xl sm:text-3xl leading-relaxed text-slate-900 dark:text-white">
+                            {clozeBefore}<span className="inline-block align-middle mx-1 w-12 border-b-[3px] border-red-400" />{clozeAfter}
+                        </p>
+                        {q.word.exTr && <p className="text-sm text-slate-500 dark:text-slate-400">{q.word.exTr}</p>}
+                    </>
+                )}
+            </div>
+
+            {/* Opções */}
+            <div className="grid gap-2.5 mt-5">
+                {q.options.map((opt, i) => {
+                    let cls = "border-slate-200 dark:border-slate-800 hover:border-red-400 hover:bg-red-50/40 dark:hover:bg-red-500/5";
+                    let badge = "bg-slate-100 dark:bg-slate-800 text-slate-500";
+                    if (answered) {
+                        if (opt.correct) { cls = "border-emerald-400 bg-emerald-50 dark:bg-emerald-500/10"; badge = "bg-emerald-500 text-white"; }
+                        else if (i === chosen) { cls = "border-rose-400 bg-rose-50 dark:bg-rose-500/10"; badge = "bg-rose-500 text-white"; }
+                        else cls = "border-slate-200 dark:border-slate-800 opacity-50";
+                    }
+                    return (
+                        <button key={i} disabled={answered} onClick={() => answer(i)}
+                            className={"relative w-full text-left rounded-2xl border-2 px-4 py-3.5 flex items-center gap-3 transition active:scale-[.99] " + cls}>
+                            <span className={"w-7 h-7 shrink-0 rounded-lg grid place-items-center text-sm font-bold " + badge}>{i + 1}</span>
+                            <span className="flex-1">{renderOption(opt)}</span>
+                            {answered && opt.correct && <Icon name="Check" className="w-5 h-5 text-emerald-500 shrink-0" />}
+                            {answered && !opt.correct && i === chosen && <Icon name="X" className="w-5 h-5 text-rose-500 shrink-0" />}
+                        </button>
+                    );
+                })}
+            </div>
+
+            {/* Feedback + Continuar */}
+            {answered && (
+                <div className={"mt-5 rounded-2xl p-4 flex items-center gap-3 animate-slideup " + (isCorrect ? "bg-emerald-50 dark:bg-emerald-500/10" : "bg-rose-50 dark:bg-rose-500/10")}>
+                    <div className={"w-10 h-10 rounded-full grid place-items-center shrink-0 " + (isCorrect ? "bg-emerald-500" : "bg-rose-500")}>
+                        <Icon name={isCorrect ? "Check" : "X"} className="w-6 h-6 text-white" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                        <div className={"font-extrabold " + (isCorrect ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400")}>
+                            {isCorrect ? "Correto!" : "Resposta certa"}
+                        </div>
+                        {!isCorrect && <div className={"text-sm text-slate-600 dark:text-slate-300 mt-0.5 " + (q.type === "jp2pt" ? "" : "font-jp")}>{correctText}</div>}
+                    </div>
+                    <button onClick={next} className={"font-bold px-5 py-2.5 rounded-xl text-white active:scale-95 transition shrink-0 " + (isCorrect ? "bg-emerald-500 hover:bg-emerald-600" : "bg-rose-500 hover:bg-rose-600")}>
+                        Continuar
+                    </button>
+                </div>
+            )}
+            {!answered && <p className="text-center text-xs text-slate-400 mt-3 hidden sm:block">Toque numa opção ou use as teclas 1–{q.options.length}.</p>}
         </div>
     );
 }
