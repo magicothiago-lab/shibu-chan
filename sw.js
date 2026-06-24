@@ -2,7 +2,7 @@
    Estratégia: conteúdo do próprio site (index.html, words.json) = network-first
    (sempre atualizado quando online, cai pro cache offline). Bibliotecas de CDN
    (versões fixas) = cache-first. */
-const CACHE = "okane-cache-v1";
+const CACHE = "tensai-cache-v2";
 
 const CORE = [
   "./",
