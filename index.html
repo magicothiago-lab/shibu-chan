@@ -51,6 +51,10 @@
             },
         };
     </script>
+    <script>
+        // Tema do aparelho aplicado antes da pintura (evita "flash" claro no modo escuro).
+        try { if (window.matchMedia("(prefers-color-scheme: dark)").matches) document.documentElement.classList.add("dark"); } catch (e) {}
+    </script>
     <style>
         html { -webkit-tap-highlight-color: transparent; }
         body { overscroll-behavior-y: none; }
@@ -334,15 +338,16 @@ function App() {
     const [view, setView] = useState({ screen: "dashboard" }); // dashboard | modules | lessons | flashcards | quiz
     const [dataReady, setDataReady] = useState(() => DATASET.length > 0);
 
-    // aplica tema
+    // Tema automático: segue sempre a preferência do aparelho e atualiza ao vivo
+    // (se o sistema trocar de claro p/ escuro, o app acompanha na hora).
     useEffect(() => {
         const root = document.documentElement;
-        let dark;
-        if (progress.theme === "dark") dark = true;
-        else if (progress.theme === "light") dark = false;
-        else dark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-        root.classList.toggle("dark", dark);
-    }, [progress.theme]);
+        const mq = window.matchMedia("(prefers-color-scheme: dark)");
+        const apply = () => root.classList.toggle("dark", mq.matches);
+        apply();
+        mq.addEventListener("change", apply);
+        return () => mq.removeEventListener("change", apply);
+    }, []);
 
     // pré-carrega vozes de TTS
     useEffect(() => {
@@ -400,14 +405,9 @@ function App() {
     // palavras vencidas (prontas para revisão) hoje
     const dueCount = useMemo(() => countDue(progress, todayStr()), [progress]);
 
-    const toggleTheme = () => {
-        const isDark = document.documentElement.classList.contains("dark");
-        update({ theme: isDark ? "light" : "dark" });
-    };
-
     return (
         <div className="min-h-screen flex flex-col text-slate-800 dark:text-slate-100">
-            <Header view={view} setView={setView} onToggleTheme={toggleTheme} streak={progress.streak} dueCount={dueCount} />
+            <Header view={view} setView={setView} streak={progress.streak} dueCount={dueCount} />
             <main className="flex-1 w-full max-w-5xl mx-auto px-4 sm:px-6 pb-24 pt-4">
                 {view.screen === "dashboard" && (
                     <Dashboard stats={stats} progress={progress} setView={setView} dueCount={dueCount} />
@@ -450,7 +450,7 @@ function App() {
 /* ------------------------------------------------------------------ */
 /*  Header                                                             */
 /* ------------------------------------------------------------------ */
-function Header({ view, setView, onToggleTheme, streak, dueCount }) {
+function Header({ view, setView, streak, dueCount }) {
     // Esconde a barra ao rolar para baixo; reaparece ao rolar para cima (ou perto do topo).
     const [hidden, setHidden] = useState(false);
     useEffect(() => {
@@ -466,7 +466,7 @@ function Header({ view, setView, onToggleTheme, streak, dueCount }) {
     }, []);
     useEffect(() => { setHidden(false); }, [view]);   // ao trocar de tela, garante visível
     return (
-        <header className={"sticky top-0 z-20 backdrop-blur-md bg-white/80 dark:bg-slate-900/80 border-b border-slate-200 dark:border-slate-800 transition-transform duration-300 will-change-transform " + (hidden ? "-translate-y-full" : "translate-y-0")}>
+        <header className={"hidden sm:block sticky top-0 z-20 backdrop-blur-md bg-white/80 dark:bg-slate-900/80 border-b border-slate-200 dark:border-slate-800 transition-transform duration-300 will-change-transform " + (hidden ? "-translate-y-full" : "translate-y-0")}>
             <div className="max-w-5xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
                 <button onClick={() => setView({ screen: "dashboard" })} className="flex items-center gap-2 group">
                     <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-red-500 to-rose-600 flex items-center justify-center text-white font-jp font-bold text-lg shadow-md group-active:scale-95 transition">天</div>
@@ -487,9 +487,6 @@ function Header({ view, setView, onToggleTheme, streak, dueCount }) {
                     <div className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-orange-100 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 text-sm font-semibold">
                         <Icon name="Flame" className="w-4 h-4" /> {streak}
                     </div>
-                    <button onClick={onToggleTheme} aria-label="Alternar tema" className="w-9 h-9 rounded-full grid place-items-center hover:bg-slate-100 dark:hover:bg-slate-800 transition">
-                        <Icon name="SunMoon" className="w-5 h-5" />
-                    </button>
                 </div>
             </div>
         </header>
