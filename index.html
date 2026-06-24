@@ -451,8 +451,22 @@ function App() {
 /*  Header                                                             */
 /* ------------------------------------------------------------------ */
 function Header({ view, setView, onToggleTheme, streak, dueCount }) {
+    // Esconde a barra ao rolar para baixo; reaparece ao rolar para cima (ou perto do topo).
+    const [hidden, setHidden] = useState(false);
+    useEffect(() => {
+        let lastY = window.scrollY;
+        const onScroll = () => {
+            const y = window.scrollY;
+            if (y < 80) setHidden(false);                       // perto do topo: sempre visível
+            else if (Math.abs(y - lastY) > 6) setHidden(y > lastY); // desce esconde, sobe mostra
+            lastY = y;
+        };
+        window.addEventListener("scroll", onScroll, { passive: true });
+        return () => window.removeEventListener("scroll", onScroll);
+    }, []);
+    useEffect(() => { setHidden(false); }, [view]);   // ao trocar de tela, garante visível
     return (
-        <header className="sticky top-0 z-20 backdrop-blur-md bg-white/80 dark:bg-slate-900/80 border-b border-slate-200 dark:border-slate-800">
+        <header className={"sticky top-0 z-20 backdrop-blur-md bg-white/80 dark:bg-slate-900/80 border-b border-slate-200 dark:border-slate-800 transition-transform duration-300 will-change-transform " + (hidden ? "-translate-y-full" : "translate-y-0")}>
             <div className="max-w-5xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
                 <button onClick={() => setView({ screen: "dashboard" })} className="flex items-center gap-2 group">
                     <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-red-500 to-rose-600 flex items-center justify-center text-white font-jp font-bold text-lg shadow-md group-active:scale-95 transition">天</div>
