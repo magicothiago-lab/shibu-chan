@@ -5,8 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <meta name="theme-color" content="#ef4444" />
     <title>Okane 日本語 — Aprenda as 3000 palavras mais frequentes do japonês</title>
-    <!-- Empty data-URI icon: stops the browser's automatic /favicon.ico request (harmless 404). -->
-    <link rel="icon" href="data:," />
+    <!-- PWA: ícones, manifest e metadados (instalável no desktop/celular). -->
+    <link rel="icon" type="image/png" href="icon-192.png" />
+    <link rel="apple-touch-icon" href="icon-192.png" />
+    <link rel="manifest" href="manifest.webmanifest" />
+    <meta name="application-name" content="Okane 日本語" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Okane 日本語" />
 
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -1239,6 +1245,15 @@ function BottomNav({ view, setView, dueCount }) {
 
 /* ------------------------------------------------------------------ */
 ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+    </script>
+
+    <!-- Registra o service worker (offline + instalável). Caminho relativo => escopo /shibu-chan/. -->
+    <script>
+        if ("serviceWorker" in navigator) {
+            window.addEventListener("load", function () {
+                navigator.serviceWorker.register("sw.js").catch(function () {});
+            });
+        }
     </script>
 </body>
 </html>
