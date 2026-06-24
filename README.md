@@ -1,4 +1,4 @@
-# Okane 日本語
+# Tensai 日本語
 
 Web App (Single Page Application) para o aprendizado das **3000 palavras mais frequentes do japonês**.
 

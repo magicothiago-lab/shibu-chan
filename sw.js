@@ -1,4 +1,4 @@
-/* Okane 日本語 — service worker (offline + instalável como PWA).
+/* Tensai 日本語 — service worker (offline + instalável como PWA).
    Estratégia: conteúdo do próprio site (index.html, words.json) = network-first
    (sempre atualizado quando online, cai pro cache offline). Bibliotecas de CDN
    (versões fixas) = cache-first. */
